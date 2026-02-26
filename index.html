@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>母親目線でやさしく促す</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- 左ペイン: タスク一覧（優先度最適化→Gemini） -->
+    <aside class="pane left-pane">
+      <header class="pane-header">
+        <h2>やること一覧</h2>
+        <button type="button" class="btn-icon" id="btn-optimize" title="優先度を最適化">↻</button>
+      </header>
+      <div class="task-scroll">
+        <section class="task-section">
+          <div class="task-section-header">今日</div>
+          <ul class="task-list" id="task-list-today"></ul>
+        </section>
+        <section class="task-section">
+          <div class="task-section-header">明日</div>
+          <ul class="task-list" id="task-list-tomorrow"></ul>
+        </section>
+        <section class="task-section">
+          <div class="task-section-header">今週</div>
+          <ul class="task-list" id="task-list-week"></ul>
+        </section>
+        <details class="task-section-done" id="task-done-details">
+          <summary>完了したタスク</summary>
+          <ul class="task-list done" id="task-list-done"></ul>
+        </details>
+      </div>
+      <div class="add-task">
+        <input type="text" id="new-task-input" placeholder="新しいタスク..." />
+        <select id="new-task-bucket">
+          <option value="today">今日</option>
+          <option value="tomorrow">明日</option>
+          <option value="week">今週</option>
+        </select>
+        <button type="button" id="btn-add-task">追加</button>
+      </div>
+    </aside>
+
+    <!-- 中央ペイン: 現在のタスク -->
+    <main class="pane center-pane">
+      <header class="pane-header">
+        <h2>いま、これに集中</h2>
+      </header>
+      <div class="current-task" id="current-task">
+        <p class="current-task-title" id="current-task-title">タスクを選んでね</p>
+        <p class="current-task-message" id="current-task-message">左の一覧から選ぶか、新しいやることを追加してね。</p>
+        <button type="button" class="btn-primary" id="btn-done" style="display:none;">できた！</button>
+      </div>
+    </main>
+
+    <!-- 右ペイン: 助言パネル（今日すべきタスク候補＋母親目線アドバイス） -->
+    <aside class="pane right-pane">
+      <div class="events-area">
+        <header class="advice-header">
+          <h3>今日のおすすめ</h3>
+          <button type="button" class="btn-icon help" id="btn-advice-refresh" title="メモリーとやること一覧から、今日やりやすい候補と季節のひとことを出します。クリックかドラッグ＆ドロップで中央へ。">♥</button>
+          <button type="button" class="btn-icon advice-refresh" id="btn-advice-refresh" title="今日の候補をGeminiに聞く">✦</button>
+        </header>
+        <div class="advice-grid">
+          <ul class="events-list advice-list" id="events-list"></ul>
+        </div>
+        <button type="button" class="btn-advice-refresh-secondary" id="btn-advice-refresh-secondary">他の候補をみる</button>
+      </div>
+      <div class="mother-area">
+        <div class="mother-icon expression-neutral" id="mother-icon" aria-hidden="true"></div>
+        <p class="mother-caption" id="advice-text">おかあさんといっしょに、ひとつずつね。</p>
+        <div class="mother-toast" id="mother-toast" aria-live="polite"></div>
+      </div>
+      <!-- 右下: トグル群（TTS ON/OFF × 音声 女性） -->
+      <div class="controls-bottom">
+        <div class="toggle-group">
+          <label class="toggle-row">
+            <span>読み上げ</span>
+            <input type="checkbox" id="tts-toggle" />
+            <span class="toggle-slider"></span>
+          </label>
+          <label class="toggle-row">
+            <span>声（女性）</span>
+            <select id="voice-select">
+              <option value="">選択...</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ミニ・コストインジケータ（今月API見積）＋まとめて追加（中央下） -->
+  <div class="cost-indicator" id="cost-indicator">
+    <span class="cost-label">今月のAPI見積</span>
+    <span class="cost-value" id="cost-value">¥0</span>
+    <button type="button" class="bottom-tools-toggle" id="bottom-tools-toggle">ツールをしまう</button>
+  </div>
+
+  <div class="quick-add" id="quick-add">
+    <button type="button" class="quick-add-toggle" id="btn-quick-add-toggle">＋ タスクをまとめて追加</button>
+    <div class="quick-add-body" id="quick-add-body" hidden>
+      <textarea id="quick-add-text" placeholder="1行1タスクで入力してね。ドラッグまたはクリックで追加できます。"></textarea>
+      <ul class="quick-add-list" id="quick-add-list"></ul>
+      <div class="quick-add-actions">
+        <button type="button" id="btn-quick-add-all">すべて追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- メモリー入力画面（表に露出しない・隠し入口） -->
+  <button type="button" class="btn-image-change" id="btn-image-change" title="おかあさんの画像を変更">🖼</button>
+  <button type="button" class="btn-memory-entry" id="btn-memory-entry" title="メモリー編集">📝</button>
+  <div class="memory-overlay" id="memory-overlay" hidden>
+    <div class="memory-panel">
+      <header class="memory-header">
+        <h2>メモリー</h2>
+        <div class="memory-meta">
+          <span id="memory-last-edited">最終編集: --</span>
+          <button type="button" id="btn-rescan">再スキャン</button>
+        </div>
+        <button type="button" class="btn-close" id="btn-memory-close">×</button>
+      </header>
+      <div class="memory-api-key">
+        <label>Gemini APIキー（ここに入力すると優先度・今日のおすすめで使えます）</label>
+        <input type="password" id="memory-api-key-input" placeholder="Google AI Studioで取得したキーを貼り付け" />
+      </div>
+      <textarea id="memory-text" placeholder="家族の予定や覚えておきたいことを書いてね。自動で保存されます。"></textarea>
+      <p class="memory-autosave" id="memory-autosave-msg"></p>
+    </div>
+  </div>
+
+  <!-- タスク詳細モーダル -->
+  <div class="task-detail-overlay" id="task-detail-overlay" hidden>
+    <div class="task-detail-panel">
+      <header class="task-detail-header">
+        <h2>タスクの内容</h2>
+        <button type="button" class="task-detail-close" id="task-detail-close">×</button>
+      </header>
+      <div class="task-detail-body">
+        <p class="task-detail-text" id="task-detail-text"></p>
+      </div>
+      <div class="task-detail-actions">
+        <button type="button" id="task-detail-restore">一覧に戻す</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 母親画像変更用の隠しファイル入力 -->
+  <input type="file" id="mother-image-input" accept="image/*" hidden />
+
+  <script src="app.js"></script>
+</body>
+</html>
